@@ -1,7 +1,7 @@
 package com.microsoft.chgeuer
 
-import org.apache.flink.streaming.api.scala._
 import org.apache.flink.api.java.utils.ParameterTool
+import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
 
@@ -21,7 +21,7 @@ object ScalaJob {
           parameterTool.getProperties
         )
       )
-      .map(w => (w, 1))
+      .map(w => (w.split(' ')(0), w.split(' ')(1).toInt))
       .keyBy(0)
       .sum(1)
       .map(t => s"${t._1} ${t._2}")
