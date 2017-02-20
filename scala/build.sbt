@@ -7,7 +7,7 @@ name := "chgeuername"
 
 version := "0.1-SNAPSHOT"
 
-organization := "com.microsoft"
+organization := "com.microsoft.chgeuer"
 
 scalaVersion in ThisBuild := "2.11.8"
 
@@ -24,7 +24,7 @@ lazy val root = (project in file(".")).
     libraryDependencies ++= flinkDependencies
   )
 
-mainClass in assembly := Some("com.microsoft.Job")
+mainClass in assembly := Some("com.microsoft.chgeuer.ScalaJob")
 
 // make run command include the provided dependencies
 run in Compile := Defaults.runTask(fullClasspath in Compile, mainClass in (Compile, run), runner in (Compile, run))
