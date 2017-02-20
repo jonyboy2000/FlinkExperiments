@@ -3,7 +3,6 @@ package com.microsoft.chgeuer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer010;
@@ -16,7 +15,6 @@ import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 public class JavaJob {
 	public static void main(String[] args) throws Exception {
                 final ParameterTool parameterTool = ParameterTool.fromArgs(args);
-
                 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
                 DataStream<String> messageStream = env.addSource(
