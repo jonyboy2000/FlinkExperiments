@@ -12,7 +12,7 @@ import org.apache.flink.streaming.util.serialization.SimpleStringSchema
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
 
 object ScalaJob {
-  case class Point(word:String, count:Int)
+  case class Point(ccn:String, count:Int)
 
   def main(args: Array[String]) {
     val params = ParameterTool.fromArgs(args)
@@ -28,12 +28,12 @@ object ScalaJob {
           params.getProperties
         )
       )
-      .map(w => new Point(word = w.split(' ')(0), count = w.split(' ')(1).toInt))
-      .keyBy("word")
+      .map(w => new Point(ccn = w.split(' ')(0), count = w.split(' ')(1).toInt))
+      .keyBy("ccn")
       .window(TumblingEventTimeWindows.of(Time.seconds(5)))
       // .window(GlobalWindows.create).evictor(TimeEvictor.of(Time.of(10, TimeUnit.SECONDS)))
       .sum("count")
-      .map(t => s"${t.word} ${t.count}")
+      .map(t => s"${t.ccn} ${t.count}")
       // .map(w => (w.split(' ')(0), w.split(' ')(1).toInt)).keyBy(0).sum(1).map(t => s"${t._1} ${t._2}")
 
     val myProducerConfig = FlinkKafkaProducer010.writeToKafkaWithTimestamps[String](
