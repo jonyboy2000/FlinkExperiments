@@ -25,4 +25,4 @@ Go to the [Flink Portal](http://localhost:8081/#/overview)
 --topic.input test --topic.target results --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181 --group.id myGroup
 ```
 
-![Simple Demo][docs/1.png]
+![Simple Demo](docs/1.png)
