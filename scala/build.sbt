@@ -1,7 +1,10 @@
+import sbtprotobuf.{ProtobufPlugin=>PB}
+PB.protobufSettings
+
 resolvers in ThisBuild ++= Seq(
   "Apache Development Snapshot Repository" at "https://repository.apache.org/content/repositories/snapshots/",
   Resolver.mavenLocal
-  )
+)
 
 name := "chgeuername"
 
@@ -31,6 +34,6 @@ run in Compile := Defaults.runTask(fullClasspath in Compile, mainClass in (Compi
 
 // exclude Scala library from assembly
 assemblyOption in assembly := (assemblyOption in assembly).value.copy(
-  includeScala = false, 
+  includeScala = false,
   includeDependency = true
-  )
+)
