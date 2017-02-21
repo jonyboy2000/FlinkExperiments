@@ -3,16 +3,26 @@ package com.microsoft.chgeuer
 // com.microsoft.chgeuer.ScalaJob
 // --topic.input test --topic.target results --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181 --group.id myGroup
 
+import com.google.protobuf.timestamp.{Timestamp, TimestampProto}
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema
+import org.apache.flink.streaming.util.serialization.{DeserializationSchema, SimpleStringSchema}
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
+import com.microsoft.chgeuer.proto.messages.TrackingPacket
+import org.apache.flink.api.common.typeinfo.TypeInformation
 
 object ScalaJob {
   case class Point(ccn:String, count:Int)
+
+  class TrackingPacketSerializer extends DeserializationSchema[TrackingPacket]
+  {
+    override def isEndOfStream(nextElement: TrackingPacket): Boolean = false
+    override def deserialize(message: Array[Byte]): TrackingPacket = TrackingPacket.parseFrom(message)
+    override def getProducedType: TypeInformation[TrackingPacket] = createTypeInformation[TrackingPacket]
+  }
 
   def main(args: Array[String]) {
     val params = ParameterTool.fromArgs(args)
@@ -21,14 +31,25 @@ object ScalaJob {
     env.getConfig.setGlobalJobParameters(params)
     env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
+    /*
+    val p = TrackingPacket(
+      ccn = "Hallo",
+      lat = 1.2,
+      lon = 2.3,
+      date = Some(Timestamp(
+        seconds = 732984719837489L,
+        nanos = 1248)))
+    var buf = TrackingPacket.toByteArray(p)
+    */
+
     val messageStream = env.addSource(
-        new FlinkKafkaConsumer010[String](
+        new FlinkKafkaConsumer010[TrackingPacket](
           params.getRequired("topic.input"),
-          new SimpleStringSchema,
+          new TrackingPacketSerializer,
           params.getProperties
         )
       )
-      .map(w => new Point(ccn = w.split(' ')(0), count = w.split(' ')(1).toInt))
+      .map(w => new Point(ccn = w.ccn, count = w.id))
       .keyBy("ccn")
       .window(TumblingEventTimeWindows.of(Time.seconds(5)))
       // .window(GlobalWindows.create).evictor(TimeEvictor.of(Time.of(10, TimeUnit.SECONDS)))

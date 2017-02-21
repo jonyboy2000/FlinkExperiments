@@ -1,6 +1,3 @@
-import sbtprotobuf.{ProtobufPlugin=>PB}
-PB.protobufSettings
-
 resolvers in ThisBuild ++= Seq(
   "Apache Development Snapshot Repository" at "https://repository.apache.org/content/repositories/snapshots/",
   Resolver.mavenLocal
@@ -37,3 +34,11 @@ assemblyOption in assembly := (assemblyOption in assembly).value.copy(
   includeScala = false,
   includeDependency = true
 )
+
+// PB.pythonExe := "\"C:\\Program Files\\Python36\\Python.exe\""
+PB.pythonExe := "\"C:\\Python27\\Python.exe\""
+PB.targets in Compile := Seq(
+  scalapb.gen() -> (sourceManaged in Compile).value
+)
+// If you need scalapb/scalapb.proto or anything from google/protobuf/*.proto
+libraryDependencies += "com.trueaccord.scalapb" %% "scalapb-runtime" % com.trueaccord.scalapb.compiler.Version.scalapbVersion % "protobuf"
