@@ -3,7 +3,6 @@ package com.microsoft.chgeuer
 // com.microsoft.chgeuer.ScalaJob
 // --topic.input test --topic.target results --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181 --group.id myGroup
 
-import com.google.protobuf.timestamp.{Timestamp, TimestampProto}
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.windowing.time.Time
@@ -14,33 +13,21 @@ import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, Flink
 import com.microsoft.chgeuer.proto.messages.TrackingPacket
 import org.apache.flink.api.common.typeinfo.TypeInformation
 
-object ScalaJob {
-  case class Point(ccn:String, count:Int)
+class TrackingPacketSerializer extends DeserializationSchema[TrackingPacket]
+{
+  override def isEndOfStream(nextElement: TrackingPacket): Boolean = false
+  override def deserialize(message: Array[Byte]): TrackingPacket = TrackingPacket.parseFrom(message)
+  override def getProducedType: TypeInformation[TrackingPacket] = createTypeInformation[TrackingPacket]
+}
 
-  class TrackingPacketSerializer extends DeserializationSchema[TrackingPacket]
-  {
-    override def isEndOfStream(nextElement: TrackingPacket): Boolean = false
-    override def deserialize(message: Array[Byte]): TrackingPacket = TrackingPacket.parseFrom(message)
-    override def getProducedType: TypeInformation[TrackingPacket] = createTypeInformation[TrackingPacket]
-  }
+case class Point(ccn:String, count:Int)
 
-  def main(args: Array[String]) {
+object ScalaJob extends App {
     val params = ParameterTool.fromArgs(args)
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.setGlobalJobParameters(params)
     env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
-
-    /*
-    val p = TrackingPacket(
-      ccn = "Hallo",
-      lat = 1.2,
-      lon = 2.3,
-      date = Some(Timestamp(
-        seconds = 732984719837489L,
-        nanos = 1248)))
-    var buf = TrackingPacket.toByteArray(p)
-    */
 
     val messageStream = env.addSource(
         new FlinkKafkaConsumer010[TrackingPacket](
@@ -67,5 +54,4 @@ object ScalaJob {
     myProducerConfig.setFlushOnCheckpoint(true)
 
     env.execute("Christian's ScalaJob")
-  }
 }
