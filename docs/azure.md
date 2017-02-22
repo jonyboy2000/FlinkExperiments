@@ -43,21 +43,26 @@ SET TEMPLATE_URL=https://raw.githubusercontent.com/Azure/azure-quickstart-templa
 SET USERNAME=chgeuer
 SET DNS_NAME=chgeuerdcos1
 SET MACHINE_SIZE=Standard_A2
+SET FLINK_MASTER_COUNT=3
+SET FLINK_AGENT_COUNT=3
 
 SET /p SSH_KEY=<%SSH_OPENSSH_PUBLIC_FILE%
-echo "%SSH_KEY%"
-
-SET TEMPLATE_PARAMS="{ \"parameters\": { \"linuxAdminUsername\": { \"value\": \"%USERNAME%\" }, \"sshRSAPublicKey\": { \"value\": \"%SSH_KEY%\" }, \"dnsNamePrefix\": { \"value\": \"%DNS_NAME%\" }, \"orchestratorType\": { \"value\": \"DCOS\" }, \"agentCount\": { \"value\": 1 }, \"masterCount\": { \"value\": 3 }, \"agentVMSize\": { \"value\": \"%MACHINE_SIZE%\" } } }"
 
 az login
 az account set --subscription %AZURE_SUBSCRIPTION_NAME%
 az group create --name %RESOURCE_GROUP% --location %RESOURCE_GROUP_LOCATION%
-az group deployment create -g %RESOURCE_GROUP% -n "My_first_DCOS_Deployment" --template-uri %TEMPLATE_URL% --parameters %TEMPLATE_PARAMS% > out.json
-type out.json | jq .properties.outputs.sshMaster0.value
+
+SET TEMPLATE_PARAMS="{ \"parameters\": { \"linuxAdminUsername\": { \"value\": \"%USERNAME%\" }, \"sshRSAPublicKey\": { \"value\": \"%SSH_KEY%\" }, \"dnsNamePrefix\": { \"value\": \"%DNS_NAME%\" }, \"orchestratorType\": { \"value\": \"DCOS\" }, \"agentCount\": { \"value\": %FLINK_AGENT_COUNT% }, \"masterCount\": { \"value\": %FLINK_MASTER_COUNT% }, \"agentVMSize\": { \"value\": \"%MACHINE_SIZE%\" } } }"
+az group deployment create -g %RESOURCE_GROUP% -n "My_first_DCOS_Deployment" --template-uri %TEMPLATE_URL% --parameters %TEMPLATE_PARAMS% > resource_group_creation_result.json
+
+REM ###### extract the 
+type resource_group_creation_result.json | jq .properties.outputs.masterFQDN.value > "masterFQDN.txt"
+set /p masterFQDN=<"masterFQDN.txt"
+del "masterFQDN.txt"
 
 SET LOCAL_DCOS_PORT=5110
 
-putty -ssh -2 -l %USERNAME% -L %LOCAL_DCOS_PORT%:localhost:80 -P 2200 -agent -A -i C:\Users\chgeuer\Java\keys\dcos.putty.ppk chgeuerdcos1mgmt.westeurope.cloudapp.azure.com 
+putty -ssh -2 -l %USERNAME% -L %LOCAL_DCOS_PORT%:localhost:80 -P 2200 -agent -A -i %SSH_PUTTY_FILE% %masterFQDN% 
 dcos config set core.dcos_url http://localhost:%LOCAL_DCOS_PORT%
 ```
 
