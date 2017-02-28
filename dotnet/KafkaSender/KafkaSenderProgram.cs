@@ -1,85 +1,75 @@
 ﻿namespace KafkaSender
 {
     using System;
+    using System.IO;
     using System.Threading.Tasks;
+    using Kafka.Contracts;
     using KafkaNet;
     using KafkaNet.Model;
     using KafkaNet.Protocol;
-    using System.Linq;
     using ProtoBuf;
-    using System.IO;
 
     class KafkaSenderProgram
     {
-        static void Main(string[] args) { Console.Title = "Sender";  MainAync(args).Wait(); Console.WriteLine("Done3"); }
+        static void Main(string[] args) { Console.Title = "Sender";  MainAync(args).Wait(); }
 
         static async Task MainAync(string[] args)
         {
+            var fn = @"..\..\..\..\..\VodafoneTestData\data\proto\8080415317.protobuf";
+
             var router = new BrokerRouter(
                 kafkaOptions: new KafkaOptions(
-                    kafkaServerUri: new Uri("http://127.0.0.1:9092")));
+                    kafkaServerUri: new Uri("http://13.73.154.72:9092")));
 
-            Func<TrackingPacket, byte[]> serialize = p =>
-            {
-                var ms = new MemoryStream();
-                Serializer.Serialize<TrackingPacket>(ms, p);
-                return ms.ToArray();
-            };
-
+            var packets = ReadProtobufFile(fn);
             using (var client = new Producer(router))
             {
-                Func<TrackingPacket, Task> send = async (msg) =>
-                {
-                    await Task.Delay(TimeSpan.FromMilliseconds(500));
-                    await client.SendMessageAsync(
-                      topic: "test",
-                      messages: new[]
-                      {
-                        new Message { Value = serialize(msg) }
-                      });
-                };
-                /*
-                await Task.WhenAll(
-                    Enumerable
-                        .Range(0, 100)
-                        .Select(i => new TrackingPacket { CCN = "Tracker", Id = i } )
-                        .Select(send)
-                        .ToArray());
-                */
-
-                for (var i = 0; i < 100; i++)
-                {
-                    await send(new TrackingPacket { CCN = "Tracker", Id = i });
-                }
-
-
-                Console.WriteLine("Done");
+                await SendMessages(client, packets);
             }
-            Console.WriteLine("Done2");
+        }
+
+        static TrackingPacket[] ReadProtobufFile(string filename)
+        {
+            using (var file = File.OpenRead(filename))
+            {
+                return Serializer.Deserialize<TrackingPacket[]>(file);
+            }
+        }
+
+        public static byte[] serialize<T>(T p) 
+        {
+            var ms = new MemoryStream();
+            Serializer.Serialize<T>(ms, p);
+            return ms.ToArray();
+        }
+
+        public static async Task send(Producer client, TrackingPacket msg)
+        {
+            await client.SendMessageAsync(
+                topic: "test",
+                messages: new[] { new Message { Value = serialize(msg) } });
+        }
+
+        static async Task SendMessages(Producer client, TrackingPacket[] packets)
+        {
+            if (packets == null || packets.Length == 0) { return; }
+
+            long startTicks = DateTime.UtcNow.Ticks;
+            await send(client, packets[0]);
+
+            if (packets.Length == 1) { return; }
+            for (int i=1; i<packets.Length; i++)
+            {
+                var packet = packets[i];
+                long now = DateTime.UtcNow.Ticks;
+                var delay = TimeSpan.FromTicks(startTicks + packet.Ticks - now);
+
+                Console.WriteLine($"Waiting {delay} before sending packet {packet.Ticks}");
+                await Task.Delay(delay);
+                await send(client, packet);
+            }
         }
     }
 
-    [ProtoContract]
-    class TrackingPacket
-    {
-        [ProtoMember(1)]
-        public string CCN { get; set; }
-        [ProtoMember(2)]
-        public Int32 Id { get; set; }
-        [ProtoMember(3)]
-        public double Lat { get; set; }
-        [ProtoMember(4)]
-        public double Lon { get; set; }
-        [ProtoMember(5)]
-        public Timestamp Date { get; set; }
-    }
-
-    [ProtoContract]
-    class Timestamp
-    {
-        [ProtoMember(1)]
-        public Int64 Seconds { get; set; }
-        [ProtoMember(2)]
-        public Int32 Nanos { get; set; }
-    }
+    
 }

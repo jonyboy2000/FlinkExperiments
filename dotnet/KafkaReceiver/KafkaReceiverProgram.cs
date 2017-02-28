@@ -13,7 +13,7 @@
 
             var router = new BrokerRouter(
                 kafkaOptions: new KafkaOptions(
-                    kafkaServerUri: new Uri("http://127.0.0.1:9092")));
+                    kafkaServerUri: new Uri("http://13.73.154.72:9092")));
                     var consumer = new Consumer(
                         options: new ConsumerOptions(
                             topic: "results",
