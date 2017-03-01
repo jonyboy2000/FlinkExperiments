@@ -17,6 +17,8 @@ sudo mount -t cifs //flink1.file.core.windows.net/savepoints /flinksave -o vers=
 
 echo "state.backend: filesystem" >> flink-1.2.0/conf/flink-conf.yaml
 echo "state.backend.fs.checkpointdir: file:///flinksave" >> flink-1.2.0/conf/flink-conf.yaml
+echo "state.savepoints.dir: file:///flinksave" >> flink-1.2.0/conf/flink-conf.yaml
+
 
 externalPublicIP=`curl -s -H Metadata:true http://169.254.169.254/metadata/latest/instance/network?format=json | jq -r .interface[0].ipv4.ipaddress[0].publicip`
 echo "advertised.listeners=PLAINTEXT://$externalPublicIP:9092" >> kafka_2.11-0.10.2.0/config/server.properties
