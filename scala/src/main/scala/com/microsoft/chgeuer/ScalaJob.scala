@@ -10,9 +10,9 @@ import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
+import org.apache.flink.streaming.api.windowing.assigners.{EventTimeSessionWindows, TumblingEventTimeWindows}
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
-import com.microsoft.chgeuer.proto.messages.{TrackingPacket, TripAggregation, Point}
+import com.microsoft.chgeuer.proto.messages.{Point, TrackingPacket, TripAggregation}
 
 case class MutableTripAggregation(ccn:Long, tripid:Int, data:ListBuffer[Point])
 
@@ -45,6 +45,10 @@ object ScalaJob extends App {
 
   val windowed: WindowedStream[MutableTripAggregation, (Long, Int), TimeWindow] = keyed
     .window(TumblingEventTimeWindows.of(Time.seconds(10)))
+    .allowedLateness(Time.seconds(30))
+
+  // EventTimeSessionWindows.withGap()
+
 
   val reduced: DataStream[MutableTripAggregation] = windowed
     .reduce((aggregate, current) => MutableTripAggregation(
