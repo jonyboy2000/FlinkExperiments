@@ -49,24 +49,23 @@
             if (packets == null || packets.Length == 0) { return; }
 
             long startTicks = DateTime.UtcNow.Ticks;
+            packets[0].Ticks = startTicks;
             await send(client, packets[0]);
-
             if (packets.Length == 1) { return; }
+
             for (int i=1; i<packets.Length; i++)
             {
                 var packet = packets[i];
                 long simulatedTimeStamp = startTicks + packet.Ticks;
                 long now = DateTime.UtcNow.Ticks;
+
                 var delay = TimeSpan.FromTicks(simulatedTimeStamp - now);
-
-                packet.Ticks = simulatedTimeStamp;
-
                 Console.WriteLine($"Waiting {delay} before sending packet {packet.Ticks}");
                 await Task.Delay(delay);
+
+                packet.Ticks = simulatedTimeStamp;
                 await send(client, packet);
             }
         }
     }
-
-    
 }

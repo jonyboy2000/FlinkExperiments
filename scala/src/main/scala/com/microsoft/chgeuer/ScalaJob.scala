@@ -52,7 +52,8 @@ object ScalaJob extends App {
 
   val reduced: DataStream[MutableTripAggregation] = windowed
     .reduce((aggregate, current) => MutableTripAggregation(
-      ccn = aggregate.ccn, tripid = aggregate.tripid,
+      ccn = aggregate.ccn,
+      tripid = aggregate.tripid,
       data = ListBuffer.concat(aggregate.data, current.data)))
 
   val targetSchema: DataStream[TripAggregation] = reduced
