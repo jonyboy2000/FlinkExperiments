@@ -1,11 +1,13 @@
 package com.microsoft.chgeuer
 
-import com.google.protobuf.{GeneratedMessage => ProtobufGeneratedMessage}
+import scala.util.{Failure, Success, Try}
 import org.apache.commons.lang3.SerializationException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.types.DeserializationException
 import org.apache.flink.streaming.util.serialization.{DeserializationSchema, SerializationSchema}
-import scala.util.{Failure, Success, Try}
+import com.google.protobuf.{GeneratedMessage => ProtobufGeneratedMessage}
+
+/*
 
 class ProtobufDeserializationSchema[T](parser: Array[Byte] => T) extends DeserializationSchema[T] {
   override def deserialize(bytes: Array[Byte]): T = {
@@ -32,3 +34,5 @@ class ProtobufSerializationSchema[T] extends SerializationSchema[T] {
     }
   }
 }
+
+*/

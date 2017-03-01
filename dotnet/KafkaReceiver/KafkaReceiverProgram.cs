@@ -1,6 +1,7 @@
 ﻿namespace KafkaReceiver
 {
     using System;
+    using System.Linq;
     using KafkaNet;
     using KafkaNet.Model;
     using Kafka.Contracts;
@@ -20,9 +21,21 @@
 
             foreach (var message in consumer.Consume())
             {
-                var payload = message.Value.deserialize<TripAggregation>();
-                Console.WriteLine(
-                    $"Response: Partition {message.Meta.PartitionId}, Offset {message.Meta.Offset} : ccn={payload.CCN} tripid={payload.TripID} ");
+                try
+                {
+                    var payload = message.Value.deserialize<TripAggregation>();
+
+                    var data = string.Join(", ", payload.Data.Select(point =>
+                        $"{new DateTime(ticks: point.Ticks, kind: DateTimeKind.Utc).ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")}")
+                        .ToArray());
+
+                    Console.WriteLine(
+                        $"Response: Partition {message.Meta.PartitionId}, Offset {message.Meta.Offset} : ccn={payload.CCN} tripid={payload.TripID} {data}");
+                }
+                catch (Exception e)
+                {
+                    Console.Error.WriteLine($"Error: {e.Message}");
+                }
             }
         }
     }

@@ -55,8 +55,11 @@
             for (int i=1; i<packets.Length; i++)
             {
                 var packet = packets[i];
+                long simulatedTimeStamp = startTicks + packet.Ticks;
                 long now = DateTime.UtcNow.Ticks;
-                var delay = TimeSpan.FromTicks(startTicks + packet.Ticks - now);
+                var delay = TimeSpan.FromTicks(simulatedTimeStamp - now);
+
+                packet.Ticks = simulatedTimeStamp;
 
                 Console.WriteLine($"Waiting {delay} before sending packet {packet.Ticks}");
                 await Task.Delay(delay);
