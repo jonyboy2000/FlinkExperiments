@@ -7,15 +7,21 @@ option java_outer_classname = "FlinkProtos";
 option csharp_namespace = "com.microsoft.chgeuer.proto";
 
 message TrackingPacket {
-    string ccn = 1;
-    int32 id = 2;
-    double lat = 3;
-    double lon = 4;
+    int64 ccn = 1;
+    int32 tripid = 2;
+    int64 ticks = 3;
+    double lat = 4;
+    double lon = 5;
+}
 
-    message Timestamp {
-        int64 seconds = 1;
-        int32 nanos = 2;
-    }
+message TripAggregation {
+    int64 ccn = 1;
+    int32 tripid = 2;
+    repeated Point data = 3;
+}
 
-    Timestamp date = 5;
+message Point {
+    int64 ticks = 1;
+    double lat = 2;
+    double lon = 3;
 }

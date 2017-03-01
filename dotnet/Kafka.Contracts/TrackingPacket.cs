@@ -2,6 +2,23 @@
 {
     using System;
     using ProtoBuf;
+    using System.IO;
+
+    public static class Proto
+    {
+        public static byte[] serialize<T>(this T p)
+        {
+            var ms = new MemoryStream();
+            Serializer.Serialize<T>(ms, p);
+            return ms.ToArray();
+        }
+
+        public static T deserialize<T>(this byte[] p)
+        {
+            var ms = new MemoryStream(p, 0, p.Length);
+            return Serializer.Deserialize<T>(ms);
+        }
+    }
 
     [ProtoContract]
     public class TrackingPacket

@@ -37,7 +37,14 @@ rm -rf /tmp/blobStore-* /tmp/flink-* /tmp/kafka-logs /tmp/zookeeper
 
 ## Talk to it
 
-```
+    ```
 ./kafka_2.11-0.10.2.0/bin/kafka-console-producer.sh --broker-list 13.73.154.72:9092 --topic test
 "C:\Users\chgeuer\Java\kafka_2.11-0.10.1.1\bin\windows\kafka-console-consumer.bat" --bootstrap-server 13.73.154.72:9092 --topic results --from-beginning
 ```
+
+
+sudo mkdir /flinksave
+sudo mount -t cifs //flink1.file.core.windows.net/savepoints /flinksave -o vers=3.0,username=flink1,password=HKJHKJHJHHJKHJKHKJK7Q==,dir_mode=0777,file_mode=0777
+echo "state.backend: filesystem" >> flink-1.2.0/conf/flink-conf.yaml
+echo "state.backend.fs.checkpointdir: file://flinksave" >> flink-1.2.0/conf/flink-conf.yaml
+

@@ -15,6 +15,8 @@
 
         static async Task MainAync(string[] args)
         {
+            Console.Write("Press <return> to start"); Console.ReadLine();
+
             var fn = @"..\..\..\..\..\VodafoneTestData\data\proto\8080415317.protobuf";
 
             var router = new BrokerRouter(
@@ -36,18 +38,10 @@
             }
         }
 
-        public static byte[] serialize<T>(T p) 
-        {
-            var ms = new MemoryStream();
-            Serializer.Serialize<T>(ms, p);
-            return ms.ToArray();
-        }
-
         public static async Task send(Producer client, TrackingPacket msg)
         {
-            await client.SendMessageAsync(
-                topic: "test",
-                messages: new[] { new Message { Value = serialize(msg) } });
+            await client.SendMessageAsync(topic: "test",
+                messages: new[] { new Message { Value = msg.serialize() } });
         }
 
         static async Task SendMessages(Producer client, TrackingPacket[] packets)
