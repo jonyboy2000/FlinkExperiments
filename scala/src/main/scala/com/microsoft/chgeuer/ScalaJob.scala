@@ -13,27 +13,9 @@ import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.streaming.api.windowing.assigners.{EventTimeSessionWindows, TumblingEventTimeWindows}
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
-
 import com.microsoft.chgeuer.proto.messages.{Point, TrackingPacket, TripAggregation}
 
 case class MutableTripAggregation(ccn:Long, tripid:Int, data:ListBuffer[Point])
-
-/*
-class WindowReduceFunction extends ReduceFunction[MutableTripAggregation] {
-  override def reduce(aggregate: MutableTripAggregation, current: MutableTripAggregation) : MutableTripAggregation = {
-    MutableTripAggregation(ccn = aggregate.ccn,
-      tripid = aggregate.tripid,
-      data = ListBuffer.concat(aggregate.data, current.data))
-  }
-}
-
-class WindowApplyFunction extends WindowFunction[MutableTripAggregation, MutableTripAggregation, (Long, Int), Window] {
-  override def apply(key: (Long, Int), window: Window, input: Iterable[MutableTripAggregation], out: Collector[MutableTripAggregation]): Unit = {
-    val ccn = key._1
-    val tripid = key._2
-  }
-}
-*/
 
 object ScalaJob extends App {
   val args2 = "--topic.input test --topic.target results --group.id myGroup --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181".split(" +")
@@ -75,6 +57,18 @@ object ScalaJob extends App {
     .apply((key: (Long, Int), window: Window, input: Iterable[MutableTripAggregation], out: Collector[MutableTripAggregation]) => {
         val ccn = key._1
         val tripid = key._2
+
+        // the window seems to have no property to access already existing elements in the window
+        // I want to create a bundle all data elements in a single MutableTripAggregation
+
+        val newElementInTheWindow = MutableTripAggregation(ccn = 1, tripid = 2, data = ListBuffer[Point](Point(ticks = 1000, lat = 50.1, lon = 4.3)))
+
+        val alreadyExistingElems = MutableTripAggregation(ccn = 1, tripid = 2, data = ListBuffer[Point](Point(ticks = 995, lat = 50.2, lon = 4.3), Point(ticks = 996, lat = 50.2, lon = 4.3), Point(ticks = 997, lat = 50.2, lon = 4.3), Point(ticks = 998, lat = 50.2, lon = 4.3), Point(ticks = 999, lat = 50.0, lon = 4.3)))
+
+        // append new data point to the collection, and make newState avail so if it is flushed, it's ready
+        val newState = MutableTripAggregation(ccn = alreadyExistingElems.ccn, tripid = alreadyExistingElems.tripid,
+          data = ListBuffer.concat(alreadyExistingElems.data, newElementInTheWindow.data))
+
 
         if (input.nonEmpty) {
           Console.println(s"Input contains ${input.size} elements......")
