@@ -5,16 +5,15 @@ package com.microsoft.chgeuer
 
 import scala.collection.mutable.ListBuffer
 import org.apache.flink.api.java.utils.ParameterTool
-import org.apache.flink.api.common.functions.ReduceFunction
 import org.apache.flink.util.Collector
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.windowing.time.Time
-import org.apache.flink.streaming.api.windowing.windows.{TimeWindow, Window}
+import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.streaming.api.windowing.assigners.{EventTimeSessionWindows, TumblingEventTimeWindows}
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
-import org.apache.flink.streaming.api.scala.function.WindowFunction
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
+
 import com.microsoft.chgeuer.proto.messages.{Point, TrackingPacket, TripAggregation}
 
 case class MutableTripAggregation(ccn:Long, tripid:Int, data:ListBuffer[Point])
@@ -37,7 +36,9 @@ class WindowApplyFunction extends WindowFunction[MutableTripAggregation, Mutable
 */
 
 object ScalaJob extends App {
-  val params = ParameterTool.fromArgs(args)
+  val args2 = "--topic.input test --topic.target results --group.id myGroup --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181".split(" +")
+
+  val params = ParameterTool.fromArgs(args2)
 
   val env = StreamExecutionEnvironment.getExecutionEnvironment
   env.getConfig.setGlobalJobParameters(params)
@@ -67,33 +68,32 @@ object ScalaJob extends App {
   val keyed: KeyedStream[MutableTripAggregation, (Long, Int)] = converted
     .keyBy(x => (x.ccn, x.tripid))
 
-
-
-  // EventTimeSessionWindows.withGap()
-  // instead of session window. No need to fold, or window.
   // a trigger makes sure apply is called, and then just use imperative code to aggregate (instead of reduce/fold)
-  val windowed2: DataStream[MutableTripAggregation] = keyed
-    .window(EventTimeSessionWindows.withGap(Time.minutes(10)))
-    .allowedLateness(Time.seconds(30))
+  val reduced_new: DataStream[MutableTripAggregation] = keyed
+    .window(EventTimeSessionWindows.withGap(Time.seconds(2)))
+    .allowedLateness(Time.seconds(5))
     .apply((key: (Long, Int), window: Window, input: Iterable[MutableTripAggregation], out: Collector[MutableTripAggregation]) => {
         val ccn = key._1
         val tripid = key._2
 
-      // Do stuff here
+        if (input.nonEmpty) {
+          Console.println(s"Input contains ${input.size} elements......")
+          input.foreach(i => {
+            Console.println(s"Adding  ${i.data(0).ticks} to output")
+            out.collect(i)
+          })
+        }
       })
 
-  // https://ci.apache.org/projects/flink/flink-docs-release-1.2/dev/windows.html
-  val windowed: WindowedStream[MutableTripAggregation, (Long, Int), TimeWindow] = keyed
+  val reduced_old: DataStream[MutableTripAggregation]  = keyed
     .window(TumblingEventTimeWindows.of(Time.seconds(10)))
     .allowedLateness(Time.seconds(30))
-
-  val reduced: DataStream[MutableTripAggregation] = windowed
     .reduce((aggregate: MutableTripAggregation, current: MutableTripAggregation) => MutableTripAggregation(
       ccn = aggregate.ccn,
       tripid = aggregate.tripid,
       data = ListBuffer.concat(aggregate.data, current.data)))
 
-  val targetSchema: DataStream[TripAggregation] = reduced
+  val targetSchema: DataStream[TripAggregation] = reduced_new
     .map(a => TripAggregation(ccn = a.ccn, tripid = a.tripid, data = a.data))
 
   // Enrichment:
