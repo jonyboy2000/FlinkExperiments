@@ -28,9 +28,22 @@
                 {
                     var payload = message.Value.deserialize<TripAggregation>();
 
+                    Func<Calculated, string> getSpeed = _ =>
+                    {
+                        if (_ == null || _.TimeDifferenceToPreviousPoint == 0.0)
+                            return "???";
+
+                        if (_.DistanceInMetersToPreviousPoint < 0.1)
+                            return "standing";
+
+                        var m_s = _.DistanceInMetersToPreviousPoint / _.TimeDifferenceToPreviousPoint;
+
+                        return $"{m_s} m/s ({(m_s*3.6).ToString("000.0")} km/h)";
+                    };
+
                     // "yyyy-MM-dd HH:mm:ss"
                     var data = string.Join(", ", payload.Data.Select(point =>
-                        $"{new DateTime(ticks: point.Ticks, kind: DateTimeKind.Utc).ToLocalTime().ToString("HH:mm:ss")}").ToArray());
+                        $"{new DateTime(ticks: point.Ticks, kind: DateTimeKind.Utc).ToLocalTime().ToString("HH:mm:ss")} ({ getSpeed(point.Properties)})").ToArray());
 
                     Console.WriteLine(
                         $"Response: Partition {message.Meta.PartitionId}, Offset {message.Meta.Offset} : ccn={payload.CCN} tripid={payload.TripID} {data}");

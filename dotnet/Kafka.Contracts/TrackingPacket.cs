@@ -1,8 +1,8 @@
 ﻿namespace Kafka.Contracts
 {
     using System;
-    using ProtoBuf;
     using System.IO;
+    using ProtoBuf;
 
     public static class Proto
     {
@@ -35,16 +35,6 @@
         public Double Longtitude { get; set; }
     }
 
-
-    /*
-    message TripAggregation
-    {
-        int64 ccn = 1;
-        int32 tripid = 2;
-        repeated Point data = 3;
-    }
-    */
-
     [ProtoContract]
     public class TripAggregation
     {
@@ -65,5 +55,16 @@
         public Double Latitude { get; set; }
         [ProtoMember(3)]
         public Double Longtitude { get; set; }
+        [ProtoMember(4)]
+        public Calculated Properties { get; set; }
+    }
+
+    [ProtoContract]
+    public class Calculated
+    {
+        [ProtoMember(1)]
+        public Double TimeDifferenceToPreviousPoint { get; set; }
+        [ProtoMember(2)]
+        public Double DistanceInMetersToPreviousPoint { get; set; }
     }
 }

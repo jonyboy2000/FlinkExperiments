@@ -24,4 +24,10 @@ message Point {
     int64 ticks = 1;
     double lat = 2;
     double lon = 3;
+    Calculated properties = 4;
+}
+
+message Calculated {
+    double timeDifferenceToPreviousPoint = 1;
+    double distanceInMetersToPreviousPoint = 2;
 }
