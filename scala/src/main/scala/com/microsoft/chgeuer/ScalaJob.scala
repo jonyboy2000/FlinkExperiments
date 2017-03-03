@@ -46,37 +46,37 @@ object ScalaJob extends App {
     // .window(EventTimeSessionWindows.withGap(Time.seconds(2)))
     // .allowedLateness(Time.seconds(5))
     .apply((key: (Long, Int), window: Window, input: Iterable[TrackingPacket], out: Collector[TripAggregation]) => {
-    if (input.nonEmpty) {
-      val pointList = input.map(tp => Point(ticks = tp.ticks, lat = tp.lat, lon = tp.lon))
-        .toList
-        .sortBy(_.ticks)
+      if (input.nonEmpty) {
+        val pointList = input.map(tp => Point(ticks = tp.ticks, lat = tp.lat, lon = tp.lon))
+          .toList
+          .sortBy(_.ticks)
 
-      var data : ListBuffer[Point] = ListBuffer[Point]()
-      for (i <- pointList.indices) {
-        val curr = pointList(i)
-        val calculatedProperties = if (i == 0) {
-          None
-        } else {
-          val prev = pointList(i-1)
-          val timeDifferenceToPreviousPoint  = helper.ticksToSeconds( curr.ticks - prev.ticks)
-          val distanceInMetersToPreviousPoint = helper.haversineInMeters( prev.lat, prev.lon, curr.lat, curr.lon )
-          val speedInKmh = 3.6 * distanceInMetersToPreviousPoint / timeDifferenceToPreviousPoint
-          // Console.println(s"${speedInKmh.formatted("%.1f")} km/h")
-
-          if (speedInKmh > 300.0)
+        var data : ListBuffer[Point] = ListBuffer[Point]()
+        for (i <- pointList.indices) {
+          val curr = pointList(i)
+          val calculatedProperties = if (i == 0) {
             None
-          else
-            Some(Calculated(
-              timeDifferenceToPreviousPoint = timeDifferenceToPreviousPoint,
-              distanceInMetersToPreviousPoint = distanceInMetersToPreviousPoint))
+          } else {
+            val prev = pointList(i-1)
+            val seconds  = helper.ticksToSeconds( curr.ticks - prev.ticks)
+            val meters = helper.haversineInMeters( prev.lat, prev.lon, curr.lat, curr.lon )
+            val kmh = 3.6 * meters / seconds
+            // Console.println(s"${kmh.formatted("%.1f")} km/h")
+
+            if (kmh > 300.0)
+              None
+            else
+              Some(Calculated(
+                timeDifferenceToPreviousPoint = seconds,
+                distanceInMetersToPreviousPoint = meters))
+          }
+
+          data = data :+ Point(ticks = curr.ticks, lat = curr.lat, lon = curr.lon, properties = calculatedProperties)
         }
 
-        data = data :+ Point(ticks = curr.ticks, lat = curr.lat, lon = curr.lon, properties = calculatedProperties)
+        out.collect(TripAggregation(ccn = key._1, tripid = key._2, data = data))
       }
-
-      out.collect(TripAggregation(ccn = key._1, tripid = key._2, data = data))
     }
-  }
   )
 
   // Enrichment:
