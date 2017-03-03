@@ -2,7 +2,6 @@ package com.microsoft.chgeuer
 
 // --topic.input test --topic.target results --group.id myGroup --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181
 
-import java.util.Calendar
 import com.microsoft.chgeuer.proto.messages.{Calculated, Point, TrackingPacket, TripAggregation}
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.util.Collector
@@ -35,7 +34,7 @@ object ScalaJob extends App {
   val rawStreamWithTimestamps: DataStream[TrackingPacket] = rawStream
     .assignTimestampsAndWatermarks(
       new BoundedOutOfOrdernessTimestampExtractor[TrackingPacket](Time.seconds(5)) {
-        override def extractTimestamp(element: TrackingPacket): Long = element.ticks
+        override def extractTimestamp(element: TrackingPacket): Long = helper.ticksToMillis(element.ticks)
       }
     )
 

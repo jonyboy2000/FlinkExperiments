@@ -20,6 +20,11 @@ object helper {
   def ticksToSeconds(ticks: Long): Double = {
     ticks / TICKS_PER_SECOND
   }
+
+  def ticksToMillis(ticks: Long): Long = {
+    ticks / TICKS_PER_MILLISECOND
+  }
+
   def javaMillisToTicks (millis: Long): Long = {
     val ticks = millis * TICKS_PER_MILLISECOND + TICKS_AT_EPOCH
     ticks
