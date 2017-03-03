@@ -17,7 +17,6 @@ class TripAggregationSerializationSchema extends SerializationSchema[TripAggrega
 }
 
 /*
-
 class ProtobufDeserializationSchema[T](parser: Array[Byte] => T) extends DeserializationSchema[T] {
   override def deserialize(bytes: Array[Byte]): T = {
     Try(parser.apply(bytes)) match {
@@ -43,5 +42,4 @@ class ProtobufSerializationSchema[T] extends SerializationSchema[T] {
     }
   }
 }
-
 */
