@@ -29,7 +29,8 @@
             var packets = ReadProtobufFile(fn);
             using (var client = new Producer(router))
             {
-                await SendMessagesOnKeyPress(client, packets);
+                await SendMessagesBasedOnTime(client, packets);
+                // await SendMessagesOnKeyPress(client, packets);
             }
         }
 

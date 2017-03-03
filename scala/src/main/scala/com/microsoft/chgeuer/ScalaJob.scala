@@ -54,21 +54,24 @@ object ScalaJob extends App {
         var data : ListBuffer[Point] = ListBuffer[Point]()
         for (i <- pointList.indices) {
           val curr = pointList(i)
-          val calculatedProperties = if (i == 0) {
+          var calculatedProperties : Option[Calculated] = if (i == 0) {
+            Console.println(s"No speed available, start of window")
             None
           } else {
-            val prev = pointList(i-1)
-            val seconds  = helper.ticksToSeconds( curr.ticks - prev.ticks)
-            val meters = helper.haversineInMeters( prev.lat, prev.lon, curr.lat, curr.lon )
-            val kmh = 3.6 * meters / seconds
-            // Console.println(s"${kmh.formatted("%.1f")} km/h")
+            val prev = pointList(i - 1)
 
-            if (kmh > 300.0)
+            val seconds = helper.ticksToSeconds(curr.ticks - prev.ticks)
+            val meters = helper.haversineInMeters(prev.lat, prev.lon, curr.lat, curr.lon)
+            val kmh = 3.6 * meters / seconds
+
+            if (kmh > 300.0) {
+              Console.println(s"Speed too high, discarding data point: ${kmh.formatted("%.1f")} km/h")
               None
-            else
-              Some(Calculated(
-                timeDifferenceToPreviousPoint = seconds,
-                distanceInMetersToPreviousPoint = meters))
+            }
+            else {
+              Console.println(s"Valid speed: ${kmh.formatted("%.1f")} km/h")
+              Some(Calculated(timeDifferenceToPreviousPoint = seconds, distanceInMetersToPreviousPoint = meters))
+            }
           }
 
           data = data :+ Point(ticks = curr.ticks, lat = curr.lat, lon = curr.lon, properties = calculatedProperties)
