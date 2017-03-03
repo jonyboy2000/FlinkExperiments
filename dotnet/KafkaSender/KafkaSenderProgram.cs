@@ -53,13 +53,13 @@
             for (int i = 0; i < packets.Length; i++)
             {
                 var packet = packets[i];
-                packet.MillisecondsSinceEpoch =  1000 * DateTime.UtcNow.ToUnixTime(); // += startTicks;
+                packet.MillisecondsSinceEpoch =  (long) (1000.0 * DateTime.UtcNow.ToUnixTime()); // += startTicks;
 
                 Console.ReadKey(intercept: true);
                 await send(client, packet);
 
                 
-                Console.WriteLine($"Packet #{i} sent {(packet.MillisecondsSinceEpoch / 1000).FromUnixTime().ToLocalTime().ToString("HH:mm:ss")}");
+                Console.WriteLine($"Packet #{i} sent {( ((double)packet.MillisecondsSinceEpoch) / 1000).FromUnixTime().ToLocalTime().ToString("HH:mm:ss")}");
             }
         }
 
@@ -67,7 +67,7 @@
         {
             if (packets == null || packets.Length == 0) { return; }
 
-            long startMillis = 1000 * DateTime.UtcNow.ToUnixTime();
+            long startMillis = (long) (1000 * DateTime.UtcNow.ToUnixTime());
             packets[0].MillisecondsSinceEpoch = startMillis;
             await send(client, packets[0]);
             if (packets.Length == 1) { return; }
