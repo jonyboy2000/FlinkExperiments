@@ -10,10 +10,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
-import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
-
-import scala.collection.mutable.ListBuffer
 
 object ScalaJob extends App {
   val args2 = "--topic.input test --topic.target results --group.id myGroup --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181".split(" +")
@@ -73,6 +70,51 @@ object ScalaJob extends App {
   env.execute("Christian's ScalaJob")
 }
 
+
+object ScalaJobProd extends App {
+  val params = ParameterTool.fromArgs(args)
+
+  val env = StreamExecutionEnvironment.getExecutionEnvironment
+  env.getConfig.setGlobalJobParameters(params)
+  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+
+  val processedStream = env.addSource(
+      new FlinkKafkaConsumer010[TrackingPacket](
+        params.getRequired("topic.input"),
+        new TrackingPacketDeserializer,
+        params.getProperties
+      )
+    )
+    .keyBy(x => (x.ccn, x.tripid))
+    .countWindow(size = 10)
+    .apply((key: (Long, Int), window: Window, input: Iterable[TrackingPacket], out: Collector[TripAggregation]) => {
+        val ccn = key._1
+        val tripid = key._2
+
+        if (input.nonEmpty) {
+          val pointList = input.map(tp => Point(
+            millisecondsSinceEpoch = tp.millisecondsSinceEpoch,
+            lat = tp.lat, lon = tp.lon))
+
+          val data = helper.combinePoints(pointList)
+
+          out.collect(TripAggregation(ccn = ccn, tripid = tripid, data = data))
+        }
+      }
+    )
+    .javaStream
+
+  val kafkaSink = FlinkKafkaProducer010.writeToKafkaWithTimestamps[TripAggregation](
+    processedStream,
+    params.getRequired("topic.target"),
+    new TripAggregationSerializationSchema,
+    params.getProperties
+  )
+  kafkaSink.setLogFailuresOnly(false)
+  kafkaSink.setFlushOnCheckpoint(true)
+
+  env.execute()
+}
 
 // Enrichment:
 // - could do async I/O to join on location DB
