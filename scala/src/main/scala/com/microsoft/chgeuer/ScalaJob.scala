@@ -10,7 +10,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
-import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows
+import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
 
 import scala.collection.mutable.ListBuffer
@@ -36,7 +36,7 @@ object ScalaJob extends App {
   val rawStreamWithTimestamps: DataStream[TrackingPacket] = rawStream
     .assignTimestampsAndWatermarks(
       new BoundedOutOfOrdernessTimestampExtractor[TrackingPacket](Time.seconds(0)) {
-        override def extractTimestamp(element: TrackingPacket): Long = helper.ticksToMillis(element.ticks)
+        override def extractTimestamp(element: TrackingPacket): Long = element.millisecondsSinceEpoch
       }
     )
 
@@ -44,10 +44,8 @@ object ScalaJob extends App {
     .keyBy(x => (x.ccn, x.tripid))
 
   val reduced_new: DataStream[TripAggregation] = keyed
-    // .window(GlobalWindows.create()).trigger(CountTrigger.of(2))
     // .countWindow(size = 10)
-    .window(EventTimeSessionWindows.withGap(Time.seconds(5)))
-    .allowedLateness(Time.seconds(2))
+    .window(EventTimeSessionWindows.withGap(Time.seconds(2))) // .allowedLateness(Time.seconds(2))
     .apply((key: (Long, Int), window: Window, input: Iterable[TrackingPacket], out: Collector[TripAggregation]) => {
       Console.out.println("Evaluating window")
 
@@ -55,9 +53,9 @@ object ScalaJob extends App {
       val tripid = key._2
 
       if (input.nonEmpty) {
-        val pointList = input.map(tp => Point(ticks = tp.ticks, lat = tp.lat, lon = tp.lon))
+        val pointList = input.map(tp => Point(millisecondsSinceEpoch = tp.millisecondsSinceEpoch, lat = tp.lat, lon = tp.lon))
           .toList
-          .sortBy(_.ticks)
+          .sortBy(_.millisecondsSinceEpoch)
 
         var data : ListBuffer[Point] = ListBuffer[Point]()
         for (i <- pointList.indices) {
@@ -70,7 +68,8 @@ object ScalaJob extends App {
 
             // Console.println(s"Event  ${helper.tickToDate(curr.ticks)} system ${helper.tickToDate(helper.javaMillisToTicks( System.currentTimeMillis()))}")
 
-            val seconds = helper.ticksToSeconds(curr.ticks - prev.ticks)
+            val seconds: Double = (curr.millisecondsSinceEpoch - prev.millisecondsSinceEpoch) / 1000.0
+            Console.out.println(s"Seconds $seconds")
             val meters = helper.haversineInMeters(prev.lat, prev.lon, curr.lat, curr.lon)
             val kmh = 3.6 * meters / seconds
 
@@ -86,9 +85,8 @@ object ScalaJob extends App {
           }
 
           Console.out.println(s"Adding point ${calculatedProperties}")
-          data = data :+ Point(ticks = curr.ticks, lat = curr.lat, lon = curr.lon, properties = calculatedProperties)
+          data = data :+ Point(millisecondsSinceEpoch = curr.millisecondsSinceEpoch, lat = curr.lat, lon = curr.lon, properties = calculatedProperties)
         }
-
 
         out.collect(TripAggregation(ccn = ccn, tripid = tripid, data = data))
       }

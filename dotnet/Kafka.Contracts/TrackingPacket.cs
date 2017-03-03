@@ -18,6 +18,18 @@
             var ms = new MemoryStream(p, 0, p.Length);
             return Serializer.Deserialize<T>(ms);
         }
+
+        public static DateTime FromUnixTime(this long unixTime)
+        {
+            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            return epoch.AddSeconds(unixTime);
+        }
+
+        public static long ToUnixTime(this DateTime date)
+        {
+            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            return Convert.ToInt64((date - epoch).TotalSeconds);
+        }
     }
 
     [ProtoContract]
@@ -28,7 +40,7 @@
         [ProtoMember(2)]
         public Int32 TripID { get; set; }
         [ProtoMember(3)]
-        public Int64 Ticks { get; set; }
+        public Int64 MillisecondsSinceEpoch { get; set; }
         [ProtoMember(4)]
         public Double Latitude { get; set; }
         [ProtoMember(5)]
@@ -50,7 +62,7 @@
     public class Point
     {
         [ProtoMember(1)]
-        public Int64 Ticks { get; set; }
+        public Int64 MillisecondsSinceEpoch { get; set; }
         [ProtoMember(2)]
         public Double Latitude { get; set; }
         [ProtoMember(3)]

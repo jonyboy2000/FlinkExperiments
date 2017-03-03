@@ -44,21 +44,22 @@
             }
         }
 
+        
 
         static async Task SendMessagesOnKeyPress(Producer client, TrackingPacket[] packets)
         {
             if (packets == null || packets.Length == 0) { return; }
 
-            long startTicks = DateTime.UtcNow.Ticks;
             for (int i = 0; i < packets.Length; i++)
             {
                 var packet = packets[i];
-                packet.Ticks = DateTime.UtcNow.Ticks; // += startTicks;
+                packet.MillisecondsSinceEpoch =  1000 * DateTime.UtcNow.ToUnixTime(); // += startTicks;
 
                 Console.ReadKey(intercept: true);
                 await send(client, packet);
 
-                Console.WriteLine($"Packet #{i} sent {new DateTime(ticks: packet.Ticks, kind: DateTimeKind.Utc).ToLocalTime().ToString("HH:mm:ss")}");
+                
+                Console.WriteLine($"Packet #{i} sent {(packet.MillisecondsSinceEpoch / 1000).FromUnixTime().ToLocalTime().ToString("HH:mm:ss")}");
             }
         }
 
@@ -66,18 +67,18 @@
         {
             if (packets == null || packets.Length == 0) { return; }
 
-            long startTicks = DateTime.UtcNow.Ticks;
-            packets[0].Ticks = startTicks;
+            long startMillis = 1000 * DateTime.UtcNow.ToUnixTime();
+            packets[0].MillisecondsSinceEpoch = startMillis;
             await send(client, packets[0]);
             if (packets.Length == 1) { return; }
 
             for (int i=1; i<packets.Length; i++)
             {
                 var packet = packets[i];
-                packet.Ticks += startTicks;
+                packet.MillisecondsSinceEpoch += startMillis;
 
-                var delay = TimeSpan.FromTicks(packet.Ticks - DateTime.UtcNow.Ticks);
-                Console.WriteLine($"Now {DateTime.Now.ToLocalTime().ToString("HH:mm:ss")}, waiting {delay} before sending packet {new DateTime(ticks: packet.Ticks, kind: DateTimeKind.Utc).ToLocalTime().ToString("HH:mm:ss")}");
+                var delay = packet.MillisecondsSinceEpoch.FromUnixTime().Subtract(DateTime.UtcNow);
+                Console.WriteLine($"Now {DateTime.Now.ToLocalTime().ToString("HH:mm:ss")}, waiting {delay} before sending packet {packet.MillisecondsSinceEpoch.FromUnixTime().ToLocalTime().ToString("HH:mm:ss")}");
                 await Task.Delay(delay);
                 await send(client, packet);
             }
@@ -94,7 +95,7 @@
             using (var file = File.OpenRead(filename))
             {
                 return Serializer.Deserialize<TrackingPacket[]>(file)
-                    .OrderBy(_ => _.Ticks)
+                    .OrderBy(_ => _.MillisecondsSinceEpoch)
                     .ToArray();
             }
         }

@@ -49,7 +49,7 @@
 
                     // "yyyy-MM-dd HH:mm:ss"
                     var data = string.Join(", ", payload.Data.Select(point =>
-                        $"{new DateTime(ticks: point.Ticks, kind: DateTimeKind.Utc).ToLocalTime().ToString("HH:mm:ss")} ({ getSpeed(point.Properties)})").ToArray());
+                        $"{(point.MillisecondsSinceEpoch / 1000).FromUnixTime().ToLocalTime().ToString("HH:mm:ss")} ({ getSpeed(point.Properties)})").ToArray());
 
                     Console.WriteLine(
                         $"Kafka Offset {message.Meta.Offset} : ccn={payload.CCN} tripid={payload.TripID} {data}");
