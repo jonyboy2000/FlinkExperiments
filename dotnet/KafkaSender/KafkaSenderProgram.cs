@@ -1,6 +1,7 @@
 ﻿namespace KafkaSender
 {
     using System;
+    using System.Linq;
     using System.IO;
     using System.Threading.Tasks;
     using Kafka.Contracts;
@@ -11,6 +12,8 @@
 
     class KafkaSenderProgram
     {
+        static readonly FiringMechanism firingMechanism = FiringMechanism.KeyPress;
+
         static void Main(string[] args) { Console.Title = "Sender";  MainAync(args).Wait(); }
 
         static async Task MainAync(string[] args)
@@ -29,8 +32,15 @@
             var packets = ReadProtobufFile(fn);
             using (var client = new Producer(router))
             {
-                await SendMessagesBasedOnTime(client, packets);
-                // await SendMessagesOnKeyPress(client, packets);
+                if (firingMechanism == FiringMechanism.ConcreteTimes)
+                {
+                    await SendMessagesBasedOnTime(client, packets);
+                }
+                else
+                {
+                    await SendMessagesOnKeyPress(client, packets);
+
+                }
             }
         }
 
@@ -83,8 +93,12 @@
         {
             using (var file = File.OpenRead(filename))
             {
-                return Serializer.Deserialize<TrackingPacket[]>(file);
+                return Serializer.Deserialize<TrackingPacket[]>(file)
+                    .OrderBy(_ => _.Ticks)
+                    .ToArray();
             }
         }
     }
+
+    enum FiringMechanism { KeyPress, ConcreteTimes }
 }

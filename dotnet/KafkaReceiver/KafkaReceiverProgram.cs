@@ -30,15 +30,21 @@
 
                     Func<Calculated, string> getSpeed = _ =>
                     {
-                        if (_ == null || _.TimeDifferenceToPreviousPoint == 0.0)
-                            return "???";
+                        if (_ == null)
+                            return "null";
 
-                        if (_.DistanceInMetersToPreviousPoint < 0.1)
-                            return "standing";
+                        var sec = _.TimeDifferenceToPreviousPoint;
+                        var m = _.DistanceInMetersToPreviousPoint;
 
-                        var m_s = _.DistanceInMetersToPreviousPoint / _.TimeDifferenceToPreviousPoint;
+                        if (sec == 0.0)
+                            return "seconds == 0";
 
-                        return $"{m_s} m/s ({(m_s*3.6).ToString("000.0")} km/h)";
+                        if (m < 0.1)
+                            return "distance too short";
+
+                        var kmh = 3.6 * m / sec;
+
+                        return $"{kmh.ToString("000.0")} km/h";
                     };
 
                     // "yyyy-MM-dd HH:mm:ss"
@@ -46,7 +52,7 @@
                         $"{new DateTime(ticks: point.Ticks, kind: DateTimeKind.Utc).ToLocalTime().ToString("HH:mm:ss")} ({ getSpeed(point.Properties)})").ToArray());
 
                     Console.WriteLine(
-                        $"Response: Partition {message.Meta.PartitionId}, Offset {message.Meta.Offset} : ccn={payload.CCN} tripid={payload.TripID} {data}");
+                        $"Kafka Offset {message.Meta.Offset} : ccn={payload.CCN} tripid={payload.TripID} {data}");
                 }
                 catch (Exception e)
                 {

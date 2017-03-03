@@ -10,16 +10,18 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
+import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
 
 import scala.collection.mutable.ListBuffer
 
 object ScalaJob extends App {
   val args2 = "--topic.input test --topic.target results --group.id myGroup --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181".split(" +")
+  val env = StreamExecutionEnvironment.createLocalEnvironment(parallelism = 1)
 
   val params = ParameterTool.fromArgs(args2)
+  //  val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-  val env = StreamExecutionEnvironment.getExecutionEnvironment
   env.getConfig.setGlobalJobParameters(params)
   env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
@@ -33,7 +35,7 @@ object ScalaJob extends App {
 
   val rawStreamWithTimestamps: DataStream[TrackingPacket] = rawStream
     .assignTimestampsAndWatermarks(
-      new BoundedOutOfOrdernessTimestampExtractor[TrackingPacket](Time.seconds(5)) {
+      new BoundedOutOfOrdernessTimestampExtractor[TrackingPacket](Time.seconds(0)) {
         override def extractTimestamp(element: TrackingPacket): Long = helper.ticksToMillis(element.ticks)
       }
     )
@@ -43,10 +45,15 @@ object ScalaJob extends App {
 
   val reduced_new: DataStream[TripAggregation] = keyed
     // .window(GlobalWindows.create()).trigger(CountTrigger.of(2))
-    .countWindow(size = 10)
-    // .window(EventTimeSessionWindows.withGap(Time.seconds(2)))
-    // .allowedLateness(Time.seconds(5))
+    // .countWindow(size = 10)
+    .window(EventTimeSessionWindows.withGap(Time.seconds(5)))
+    .allowedLateness(Time.seconds(2))
     .apply((key: (Long, Int), window: Window, input: Iterable[TrackingPacket], out: Collector[TripAggregation]) => {
+      Console.out.println("Evaluating window")
+
+      val ccn = key._1
+      val tripid = key._2
+
       if (input.nonEmpty) {
         val pointList = input.map(tp => Point(ticks = tp.ticks, lat = tp.lat, lon = tp.lon))
           .toList
@@ -56,7 +63,7 @@ object ScalaJob extends App {
         for (i <- pointList.indices) {
           val curr = pointList(i)
           var calculatedProperties : Option[Calculated] = if (i == 0) {
-            Console.println(s"No speed available, start of window")
+            Console.out.println(s"No speed available, start of window")
             None
           } else {
             val prev = pointList(i - 1)
@@ -68,19 +75,22 @@ object ScalaJob extends App {
             val kmh = 3.6 * meters / seconds
 
             if (kmh > 300.0) {
-              Console.println(s"Speed too high, discarding data point: ${kmh.formatted("%.1f")} km/h")
-              None
+              Console.out.println(s"Speed too high, discarding data point: ${kmh.formatted("%.1f")} km/h")
+              // None
+              Some(Calculated(timeDifferenceToPreviousPoint = seconds, distanceInMetersToPreviousPoint = meters))
             }
             else {
-              Console.println(s"Valid speed: ${kmh.formatted("%.1f")} km/h")
+              Console.out.println(s"Valid speed: ${kmh.formatted("%.1f")} km/h")
               Some(Calculated(timeDifferenceToPreviousPoint = seconds, distanceInMetersToPreviousPoint = meters))
             }
           }
 
+          Console.out.println(s"Adding point ${calculatedProperties}")
           data = data :+ Point(ticks = curr.ticks, lat = curr.lat, lon = curr.lon, properties = calculatedProperties)
         }
 
-        out.collect(TripAggregation(ccn = key._1, tripid = key._2, data = data))
+
+        out.collect(TripAggregation(ccn = ccn, tripid = tripid, data = data))
       }
     }
   )
