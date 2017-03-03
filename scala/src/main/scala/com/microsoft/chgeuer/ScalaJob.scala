@@ -2,6 +2,7 @@ package com.microsoft.chgeuer
 
 // --topic.input test --topic.target results --group.id myGroup --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181
 
+import java.util.Calendar
 import com.microsoft.chgeuer.proto.messages.{Calculated, Point, TrackingPacket, TripAggregation}
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.util.Collector
@@ -11,6 +12,7 @@ import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
+
 import scala.collection.mutable.ListBuffer
 
 object ScalaJob extends App {
@@ -59,6 +61,8 @@ object ScalaJob extends App {
             None
           } else {
             val prev = pointList(i - 1)
+
+            // Console.println(s"Event  ${helper.tickToDate(curr.ticks)} system ${helper.tickToDate(helper.javaMillisToTicks( System.currentTimeMillis()))}")
 
             val seconds = helper.ticksToSeconds(curr.ticks - prev.ticks)
             val meters = helper.haversineInMeters(prev.lat, prev.lon, curr.lat, curr.lon)
