@@ -3,19 +3,15 @@ package com.microsoft.chgeuer
 // com.microsoft.chgeuer.ScalaJob
 // --topic.input test --topic.target results --group.id myGroup --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181
 
-import scala.collection.mutable.ListBuffer
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.util.Collector
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.Window
-import org.apache.flink.streaming.api.windowing.assigners.{EventTimeSessionWindows, TumblingEventTimeWindows}
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
 import com.microsoft.chgeuer.proto.messages.{Point, TrackingPacket, TripAggregation}
-
-case class MutableTripAggregation(ccn:Long, tripid:Int, data:ListBuffer[Point])
 
 object ScalaJob extends App {
   val args2 = "--topic.input test --topic.target results --group.id myGroup --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181".split(" +")
@@ -34,61 +30,33 @@ object ScalaJob extends App {
     )
   )
 
-  // http://blog.madhukaraphatak.com/introduction-to-flink-streaming-part-9/
   val rawStreamWithTimestamps: DataStream[TrackingPacket] = rawStream
-      .assignTimestampsAndWatermarks(
-        new BoundedOutOfOrdernessTimestampExtractor[TrackingPacket](Time.seconds(5)) {
-          override def extractTimestamp(element: TrackingPacket): Long = element.ticks
-        }
-      )
+    .assignTimestampsAndWatermarks(
+      new BoundedOutOfOrdernessTimestampExtractor[TrackingPacket](Time.seconds(5)) {
+        override def extractTimestamp(element: TrackingPacket): Long = element.ticks
+      }
+    )
 
-  val converted: DataStream[MutableTripAggregation] = rawStreamWithTimestamps
-    .map(x => MutableTripAggregation(
-      ccn = x.ccn, tripid = x.tripid,
-      data = ListBuffer(Point(ticks = x.ticks, lat = x.lat, lon = x.lon))))
-
-  val keyed: KeyedStream[MutableTripAggregation, (Long, Int)] = converted
+  val keyed: KeyedStream[TrackingPacket, (Long, Int)] = rawStreamWithTimestamps
     .keyBy(x => (x.ccn, x.tripid))
 
   // a trigger makes sure apply is called, and then just use imperative code to aggregate (instead of reduce/fold)
-  val reduced_new: DataStream[MutableTripAggregation] = keyed
-    .window(EventTimeSessionWindows.withGap(Time.seconds(2)))
-    .allowedLateness(Time.seconds(5))
-    .apply((key: (Long, Int), window: Window, input: Iterable[MutableTripAggregation], out: Collector[MutableTripAggregation]) => {
-        val ccn = key._1
-        val tripid = key._2
+  val reduced_new: DataStream[TripAggregation] = keyed
+    .countWindow(size = 10)
+    // .window(EventTimeSessionWindows.withGap(Time.seconds(2)))
+    // .allowedLateness(Time.seconds(5))
+    .apply(function = (key: (Long, Int), window: Window, input: Iterable[TrackingPacket], out: Collector[TripAggregation]) => {
+      if (input.nonEmpty) {
+        out.collect(TripAggregation(
+          ccn = key._1,
+          tripid = key._2,
+          data = input.map(tp => Point(ticks = tp.ticks, lat = tp.lat, lon = tp.lon)).toList))
 
-        // the window seems to have no property to access already existing elements in the window
-        // I want to create a bundle all data elements in a single MutableTripAggregation
-
-        val newElementInTheWindow = MutableTripAggregation(ccn = 1, tripid = 2, data = ListBuffer[Point](Point(ticks = 1000, lat = 50.1, lon = 4.3)))
-
-        val alreadyExistingElems = MutableTripAggregation(ccn = 1, tripid = 2, data = ListBuffer[Point](Point(ticks = 995, lat = 50.2, lon = 4.3), Point(ticks = 996, lat = 50.2, lon = 4.3), Point(ticks = 997, lat = 50.2, lon = 4.3), Point(ticks = 998, lat = 50.2, lon = 4.3), Point(ticks = 999, lat = 50.0, lon = 4.3)))
-
-        // append new data point to the collection, and make newState avail so if it is flushed, it's ready
-        val newState = MutableTripAggregation(ccn = alreadyExistingElems.ccn, tripid = alreadyExistingElems.tripid,
-          data = ListBuffer.concat(alreadyExistingElems.data, newElementInTheWindow.data))
-
-
-        if (input.nonEmpty) {
-          Console.println(s"Input contains ${input.size} elements......")
-          input.foreach(i => {
-            Console.println(s"Adding  ${i.data(0).ticks} to output")
-            out.collect(i)
-          })
-        }
-      })
-
-  val reduced_old: DataStream[MutableTripAggregation]  = keyed
-    .window(TumblingEventTimeWindows.of(Time.seconds(10)))
-    .allowedLateness(Time.seconds(30))
-    .reduce((aggregate: MutableTripAggregation, current: MutableTripAggregation) => MutableTripAggregation(
-      ccn = aggregate.ccn,
-      tripid = aggregate.tripid,
-      data = ListBuffer.concat(aggregate.data, current.data)))
-
-  val targetSchema: DataStream[TripAggregation] = reduced_new
-    .map(a => TripAggregation(ccn = a.ccn, tripid = a.tripid, data = a.data))
+        Console.println(s"Input contains ${input.size} elements......")
+        Console.println(s"result contains ${points.size} elements......")
+      }
+    }
+  )
 
   // Enrichment:
   // - could do async I/O to join on location DB
@@ -96,7 +64,7 @@ object ScalaJob extends App {
   // - radical: Everything is a stream. Push all possible locations into cluster memory and join on the streams
 
   val kafkaSink = FlinkKafkaProducer010.writeToKafkaWithTimestamps[TripAggregation](
-    targetSchema.javaStream,
+    reduced_new.javaStream,
     params.getRequired("topic.target"),
     new TripAggregationSerializationSchema,
     params.getProperties
