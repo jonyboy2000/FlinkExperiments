@@ -1,10 +1,11 @@
 package com.microsoft.chgeuer
 
-import scala.collection.mutable.ListBuffer
 import scala.math._
+import scala.collection.mutable.ListBuffer
 import com.microsoft.chgeuer.proto.messages.{Calculated, Point}
 
 object helper {
+
   def haversineInMeters (lat1:Double, lon1:Double, lat2:Double, lon2:Double) :Double = {
     val R = 6372.8e3
     val dLat=(lat2 - lat1).toRadians
@@ -44,7 +45,10 @@ object helper {
       }
 
       Console.out.println(s"Adding point ${calculatedProperties}")
-      data = data :+ Point(millisecondsSinceEpoch = curr.millisecondsSinceEpoch, lat = curr.lat, lon = curr.lon, properties = calculatedProperties)
+      data = data :+ Point(
+        millisecondsSinceEpoch = curr.millisecondsSinceEpoch,
+        lat = curr.lat, lon = curr.lon,
+        properties = calculatedProperties)
     }
 
     data

@@ -22,12 +22,11 @@
 
             var fn = @"..\..\..\..\..\VodafoneTestData\data\proto\8080415317.protobuf";
 
-            var kafkaHost = "13.73.154.72";
-            kafkaHost = "127.0.0.1";
-
             var router = new BrokerRouter(
                 kafkaOptions: new KafkaOptions(
-                    kafkaServerUri: new Uri($"http://{kafkaHost}:9092")));
+                    kafkaServerUri: new Uri($"http://{Kafka.Contracts.Endpoint.KafkaHost}:9092")));
+
+            Console.WriteLine($"Using {Kafka.Contracts.Endpoint.KafkaHost}");
 
             var packets = ReadProtobufFile(fn);
             using (var client = new Producer(router))
@@ -39,12 +38,9 @@
                 else
                 {
                     await SendMessagesOnKeyPress(client, packets);
-
                 }
             }
         }
-
-        
 
         static async Task SendMessagesOnKeyPress(Producer client, TrackingPacket[] packets)
         {
@@ -58,7 +54,6 @@
                 Console.ReadKey(intercept: true);
                 await send(client, packet);
 
-                
                 Console.WriteLine($"Packet #{i} sent {( ((double)packet.MillisecondsSinceEpoch) / 1000).FromUnixTime().ToLocalTime().ToString("HH:mm:ss")}");
             }
         }

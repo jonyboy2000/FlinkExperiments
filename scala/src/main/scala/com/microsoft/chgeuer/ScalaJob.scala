@@ -2,7 +2,6 @@ package com.microsoft.chgeuer
 
 // --topic.input test --topic.target results --group.id myGroup --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181
 
-import com.microsoft.chgeuer.proto.messages.{Calculated, Point, TrackingPacket, TripAggregation}
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.util.Collector
 import org.apache.flink.streaming.api.scala._
@@ -11,12 +10,13 @@ import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
+import com.microsoft.chgeuer.proto.messages.{Calculated, Point, TrackingPacket, TripAggregation}
 
 object ScalaJob extends App {
-  val args2 = "--topic.input test --topic.target results --group.id myGroup --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181".split(" +")
+  // val args2 = "--topic.input test --topic.target results --group.id myGroup --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181".split(" +")
   // val env = StreamExecutionEnvironment.createLocalEnvironment(parallelism = 1)
 
-  val params = ParameterTool.fromArgs(args2)
+  val params = ParameterTool.fromArgs(args)
   val env = StreamExecutionEnvironment.getExecutionEnvironment
   env.getConfig.setGlobalJobParameters(params)
   env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
@@ -90,14 +90,10 @@ object ScalaJobProd extends App {
     .apply((key: (Long, Int), window: Window, input: Iterable[TrackingPacket], out: Collector[TripAggregation]) => {
         val ccn = key._1
         val tripid = key._2
-
         if (input.nonEmpty) {
-          val pointList = input.map(tp => Point(
-            millisecondsSinceEpoch = tp.millisecondsSinceEpoch,
-            lat = tp.lat, lon = tp.lon))
-
+          val pointList = input.map(tp => Point(millisecondsSinceEpoch = tp.millisecondsSinceEpoch, 
+                                                lat = tp.lat, lon = tp.lon))
           val data = helper.combinePoints(pointList)
-
           out.collect(TripAggregation(ccn = ccn, tripid = tripid, data = data))
         }
       }

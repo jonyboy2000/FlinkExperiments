@@ -4,6 +4,18 @@
     using System.IO;
     using ProtoBuf;
 
+    public static class Endpoint
+    {
+        public static string KafkaHost
+        {
+            get
+            {
+                return "127.0.0.1";
+                // return "13.73.154.72";
+            }
+        }
+    }
+
     public static class Proto
     {
         public static byte[] serialize<T>(this T p)

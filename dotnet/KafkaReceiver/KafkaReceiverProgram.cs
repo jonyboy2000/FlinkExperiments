@@ -12,15 +12,14 @@
         {
             Console.Title = "Receiver";
 
-            var kafkaHost = "13.73.154.72";
-            kafkaHost = "127.0.0.1";
+            Console.WriteLine($"Using {Kafka.Contracts.Endpoint.KafkaHost}");
 
             var consumer = new Consumer(
                 options: new ConsumerOptions(
                     topic: "results",
                     router: new BrokerRouter(
                         kafkaOptions: new KafkaOptions(
-                            kafkaServerUri: new Uri($"http://{kafkaHost}:9092")))));
+                            kafkaServerUri: new Uri($"http://{Kafka.Contracts.Endpoint.KafkaHost}:9092")))));
 
             foreach (var message in consumer.Consume())
             {
