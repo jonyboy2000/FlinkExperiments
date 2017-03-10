@@ -2,6 +2,10 @@ package com.microsoft.chgeuer
 
 // --topic.input test --topic.target results --group.id myGroup --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181
 
+// https://www.mapr.com/blog/essential-guide-streaming-first-processing-apache-flink
+// https://wwwvs.cs.hs-rm.de/vs-wiki/index.php/(SS16-03)_B%C3%B6rsendaten-Analyse_(Flink)
+// https://static.ph.ed.ac.uk/dissertations/hpc-msc/2015-2016/Triparna_Dasgupta-major_data_stream_processing_technologies_Triparna_Dasgupta.pdf
+
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.util.Collector
 import org.apache.flink.streaming.api.scala._
@@ -11,6 +15,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
 import com.microsoft.chgeuer.proto.messages.{Calculated, Point, TrackingPacket, TripAggregation}
+
 
 object ScalaJob extends App {
   // val args2 = "--topic.input test --topic.target results --group.id myGroup --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181".split(" +")
@@ -22,12 +27,17 @@ object ScalaJob extends App {
   env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
   val rawStream: DataStream[TrackingPacket] = env.addSource(
+    new TrackingPacketSource())
+
+  /*
+  val rawStream: DataStream[TrackingPacket] = env.addSource(
     new FlinkKafkaConsumer010[TrackingPacket](
       params.getRequired("topic.input"),
       new TrackingPacketDeserializer,
       params.getProperties
     )
   )
+  */
 
   val rawStreamWithTimestamps: DataStream[TrackingPacket] = rawStream
     .assignTimestampsAndWatermarks(
@@ -40,7 +50,7 @@ object ScalaJob extends App {
     .keyBy(x => (x.ccn, x.tripid))
 
   val reduced_new: DataStream[TripAggregation] = keyed
-    .countWindow(size = 10)
+    .countWindow(size = 5)
     // .window(EventTimeSessionWindows.withGap(Time.seconds(2))) // .allowedLateness(Time.seconds(2))
     .apply((key: (Long, Int), window: Window, input: Iterable[TrackingPacket], out: Collector[TripAggregation]) => {
       val ccn = key._1
