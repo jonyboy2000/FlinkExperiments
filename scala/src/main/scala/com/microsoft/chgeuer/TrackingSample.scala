@@ -1,7 +1,7 @@
 package com.microsoft.chgeuer
 
 object TrackingSample {
-  def data : Array[(Long, Double, Double)] = Array[(Long, Double, Double)](
+  def data = Array[(Long, Double, Double)](
     (1000, 48.80175, 2.637859),
     (3000, 48.8018, 2.637719),
     (1000, 48.80186, 2.637579),
